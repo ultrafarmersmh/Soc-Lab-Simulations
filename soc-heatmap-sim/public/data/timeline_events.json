@@ -1,0 +1,68 @@
+{
+  "events": [
+    {
+      "timestamp": 0,
+      "type": "baseline",
+      "metrics": {
+        "rdsSessions": 6,
+        "wazuhAlerts": 2,
+        "firewallDenies": 8,
+        "endpointAlerts": 0
+      }
+    },
+    {
+      "timestamp": 20,
+      "type": "user_logon_burst",
+      "metrics": {
+        "rdsSessions": 18,
+        "zoneTraffic": {
+          "SOC-USER->SOC-SERVER": 70
+        }
+      }
+    },
+    {
+      "timestamp": 35,
+      "type": "scan_detected",
+      "metrics": {
+        "firewallDenies": 90,
+        "zoneTraffic": {
+          "SOC-WAN->SOC-LAN": 60
+        },
+        "mitre": {
+          "Reconnaissance": 10
+        }
+      }
+    },
+    {
+      "timestamp": 55,
+      "type": "wazuh_detection",
+      "metrics": {
+        "wazuhAlerts": 35,
+        "heatZones": {
+          "SOC-SIEM": 85,
+          "SOC-LAN": 70
+        }
+      }
+    },
+    {
+      "timestamp": 75,
+      "type": "endpoint_containment",
+      "metrics": {
+        "endpointAlerts": 3,
+        "containedEndpoints": 1,
+        "heatZones": {
+          "SOC-LAN": 55
+        }
+      }
+    },
+    {
+      "timestamp": 95,
+      "type": "stabilization",
+      "metrics": {
+        "wazuhAlerts": 5,
+        "firewallDenies": 12,
+        "endpointAlerts": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "rdsSessions": 6,
+  "wazuhAlerts": 2,
+  "firewallDenies": 8,
+  "endpointAlerts": 0,
+  "containedEndpoints": 0,
+  "vulnerabilityHotspots": 3
+}

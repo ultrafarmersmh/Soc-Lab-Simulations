@@ -1,0 +1,21 @@
+{
+  "zones": [
+    { "id": "SOC-WAN", "label": "SOC-WAN", "x": 120, "y": 160, "tier": "external" },
+    { "id": "SOC-MGMT", "label": "SOC-MGMT", "x": 380, "y": 60, "tier": "high" },
+    { "id": "SOC-LAN", "label": "SOC-LAN", "x": 380, "y": 180, "tier": "medium" },
+    { "id": "SOC-SIEM", "label": "SOC-SIEM", "x": 640, "y": 60, "tier": "high" },
+    { "id": "SOC-SERVER", "label": "SOC-SERVER", "x": 640, "y": 180, "tier": "medium-high" },
+    { "id": "SOC-LAB", "label": "SOC-LAB", "x": 640, "y": 300, "tier": "low" },
+    { "id": "SOC-USER", "label": "SOC-USER", "x": 380, "y": 300, "tier": "medium" },
+    { "id": "OPNSENSE", "label": "OPNsense", "x": 250, "y": 180, "tier": "core" }
+  ],
+  "links": [
+    { "source": "SOC-WAN", "target": "OPNSENSE", "type": "north-south" },
+    { "source": "OPNSENSE", "target": "SOC-MGMT", "type": "routed" },
+    { "source": "OPNSENSE", "target": "SOC-LAN", "type": "routed" },
+    { "source": "OPNSENSE", "target": "SOC-SIEM", "type": "routed" },
+    { "source": "OPNSENSE", "target": "SOC-SERVER", "type": "routed" },
+    { "source": "OPNSENSE", "target": "SOC-LAB", "type": "routed" },
+    { "source": "OPNSENSE", "target": "SOC-USER", "type": "routed" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "assets": [
+    { "id": "RDS-SRV01", "zone": "SOC-SERVER", "type": "rds", "criticality": "high" },
+    { "id": "WAZUH-01", "zone": "SOC-SIEM", "type": "siem", "criticality": "high" },
+    { "id": "NESSUS-01", "zone": "SOC-SIEM", "type": "scanner", "criticality": "medium" },
+    { "id": "OPENEDR-ENDPOINTS", "zone": "SOC-LAN", "type": "endpoint-group", "criticality": "medium" },
+    { "id": "THINCLIENTS-22", "zone": "SOC-USER", "type": "thin-client-group", "criticality": "medium" }
+  ]
+}
