@@ -35,6 +35,7 @@ export function TopologyCanvas({
 
   const coreZone = topology.zones.find((zone) => zone.id === 'OPNSENSE');
   const regularZones = topology.zones.filter((zone) => zone.id !== 'OPNSENSE');
+  const labeledAssets = assets.filter((asset) => ['RDS-SRV01', 'WAZUH-01', 'NESSUS-01', 'OPENEDR-ENDPOINTS', 'THINCLIENTS-22'].includes(asset.id));
 
   return (
     <svg viewBox="0 0 960 420" className="topology-svg" role="img" aria-label="SOC topology map">
