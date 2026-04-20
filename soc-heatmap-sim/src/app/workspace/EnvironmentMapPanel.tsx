@@ -1,28 +1,22 @@
-import type { Asset, TopologyData } from '../data/types';
-import type { HeatSignal } from '../hooks/useModeStyling';
-import type { HeatMode } from '../hooks/useIncidentState';
+import type { TimelineEvent, TopologyData } from '../data/types';
 import { TopologyCanvas } from '../topology/TopologyCanvas';
 
 interface EnvironmentMapPanelProps {
   topology: TopologyData | null;
   isLoading: boolean;
   error: string | null;
-  assets: Asset[];
+  activeEvents: TimelineEvent[];
   selectedZoneId: string;
   onZoneSelect: (zoneId: string) => void;
-  activeMode: HeatMode;
-  modeSignal: HeatSignal;
 }
 
 export function EnvironmentMapPanel({
   topology,
   isLoading,
   error,
-  assets,
+  activeEvents,
   selectedZoneId,
-  onZoneSelect,
-  activeMode,
-  modeSignal
+  onZoneSelect
 }: EnvironmentMapPanelProps) {
   return (
     <section className="environment-map-panel">
@@ -33,11 +27,9 @@ export function EnvironmentMapPanel({
         topology={topology}
         isLoading={isLoading}
         error={error}
-        assets={assets}
+        activeEvents={activeEvents}
         selectedZoneId={selectedZoneId}
         onZoneSelect={onZoneSelect}
-        activeMode={activeMode}
-        modeSignal={modeSignal}
       />
     </section>
   );

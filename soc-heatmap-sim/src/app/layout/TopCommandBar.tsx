@@ -4,22 +4,10 @@ interface TopCommandBarProps {
   title: string;
   subtitle: string;
   scenarioLabel: string;
-  kpis: Array<{
-    label: string;
-    value: string;
-    delta: number;
-    state: 'normal' | 'elevated' | 'critical';
-    priority: 'primary' | 'secondary';
-  }>;
+  kpis: Array<{ label: string; value: string }>;
   replayClock: string;
   replayStatus: string;
   playState: string;
-  phaseSummary: {
-    phase: string;
-    impactedZone: string;
-    severity: string;
-    controlState: string;
-  };
 }
 
 export function TopCommandBar({
@@ -29,8 +17,7 @@ export function TopCommandBar({
   kpis,
   replayClock,
   replayStatus,
-  playState,
-  phaseSummary
+  playState
 }: TopCommandBarProps) {
   return (
     <header className="top-command-bar" aria-label="Top command status bar">
@@ -39,24 +26,10 @@ export function TopCommandBar({
         <p>{subtitle}</p>
       </div>
 
-      <div className="phase-summary" aria-label="Phase and status summary">
-        <strong>{phaseSummary.phase}</strong>
-        <span>Zone: {phaseSummary.impactedZone}</span>
-        <span>Severity: {phaseSummary.severity}</span>
-        <span>Control: {phaseSummary.controlState}</span>
-      </div>
-
       <div className="command-kpi-row">
         <span className="scenario-pill">{scenarioLabel}</span>
         {kpis.map((kpi) => (
-          <KPIChip
-            key={kpi.label}
-            label={kpi.label}
-            value={kpi.value}
-            delta={kpi.delta}
-            state={kpi.state}
-            priority={kpi.priority}
-          />
+          <KPIChip key={kpi.label} label={kpi.label} value={kpi.value} />
         ))}
       </div>
 

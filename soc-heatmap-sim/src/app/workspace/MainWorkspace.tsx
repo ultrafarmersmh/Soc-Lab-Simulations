@@ -1,6 +1,4 @@
 import type { Asset, TimelineEvent, TopologyData, Zone } from '../data/types';
-import type { HeatSignal } from '../hooks/useModeStyling';
-import type { IncidentEventItem, HeatMode } from '../hooks/useIncidentState';
 import { useZoneMetrics } from '../hooks/useZoneMetrics';
 import { DetailRail } from './DetailRail';
 import { EnvironmentMapPanel } from './EnvironmentMapPanel';
@@ -15,25 +13,18 @@ interface MainWorkspaceProps {
   assets: Asset[];
   events: TimelineEvent[];
   activeEvents: TimelineEvent[];
-  eventLog: IncidentEventItem[];
   selectedZone: Zone | null;
   selectedZoneId: string;
   onZoneSelect: (zoneId: string) => void;
-  modes: HeatMode[];
-  activeMode: HeatMode;
-  onModeChange: (mode: HeatMode) => void;
+  modes: string[];
+  activeMode: string;
+  onModeChange: (mode: string) => void;
   currentTimestamp: number;
   maxTimestamp: number;
   isPlaying: boolean;
   speedMultiplier: number;
   onTogglePlay: () => void;
-  onReset: () => void;
   onScrub: (timestamp: number) => void;
-  onPhaseJump: (phaseIndex: number) => void;
-  phaseIndex: number;
-  baselineEvent?: TimelineEvent;
-  modeSignal: HeatSignal;
-  currentPhaseSeverity: 'moderate' | 'high';
   onSpeedChange: (speed: number) => void;
 }
 
@@ -44,7 +35,6 @@ export function MainWorkspace({
   assets,
   events,
   activeEvents,
-  eventLog,
   selectedZone,
   selectedZoneId,
   onZoneSelect,
@@ -56,16 +46,10 @@ export function MainWorkspace({
   isPlaying,
   speedMultiplier,
   onTogglePlay,
-  onReset,
   onScrub,
-  onPhaseJump,
-  phaseIndex,
-  baselineEvent,
-  modeSignal,
-  currentPhaseSeverity,
   onSpeedChange
 }: MainWorkspaceProps) {
-  const zoneSnapshot = useZoneMetrics(selectedZone, assets, activeEvents, baselineEvent);
+  const zoneSnapshot = useZoneMetrics(selectedZone, assets, activeEvents);
 
   return (
     <main className="main-workspace-layout">
@@ -74,25 +58,19 @@ export function MainWorkspace({
           topology={topology}
           isLoading={isLoading}
           error={error}
-          assets={assets}
+          activeEvents={activeEvents}
           selectedZoneId={selectedZoneId}
           onZoneSelect={onZoneSelect}
-          activeMode={activeMode}
-          modeSignal={modeSignal}
         />
 
-        <ModeSelector modes={modes} activeMode={activeMode} onChange={onModeChange} legend={modeSignal.legend} />
+        <ModeSelector modes={modes} activeMode={activeMode} onChange={onModeChange} />
 
         <ReplayTimeline
           currentTimestamp={currentTimestamp}
           maxTimestamp={maxTimestamp}
           isPlaying={isPlaying}
           onTogglePlay={onTogglePlay}
-          onReset={onReset}
           onScrub={onScrub}
-          onPhaseJump={onPhaseJump}
-          activePhaseIndex={phaseIndex}
-          currentPhaseSeverity={currentPhaseSeverity}
         />
 
         <div className="utility-controls">
@@ -110,10 +88,10 @@ export function MainWorkspace({
           <span>{events.length} events loaded</span>
         </div>
 
-        <EventFeed events={eventLog} />
+        <EventFeed events={activeEvents} />
       </section>
 
-      <DetailRail zone={selectedZone} snapshot={zoneSnapshot} activeMode={activeMode} />
+      <DetailRail zone={selectedZone} snapshot={zoneSnapshot} />
     </main>
   );
 }

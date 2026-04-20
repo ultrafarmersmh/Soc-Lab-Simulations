@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { Zone } from '../data/types';
-import type { HeatMode } from '../hooks/useIncidentState';
 import type { ZoneMetricSnapshot } from '../hooks/useZoneMetrics';
 import { ZoneAlertsTab } from './ZoneAlertsTab';
 import { ZoneMitreTab } from './ZoneMitreTab';
@@ -10,13 +9,12 @@ import { ZoneRiskTab } from './ZoneRiskTab';
 interface DetailRailProps {
   zone: Zone | null;
   snapshot: ZoneMetricSnapshot;
-  activeMode: HeatMode;
 }
 
 const tabs = ['Overview', 'Alerts', 'MITRE', 'Risk'] as const;
 type Tab = (typeof tabs)[number];
 
-export function DetailRail({ zone, snapshot, activeMode }: DetailRailProps) {
+export function DetailRail({ zone, snapshot }: DetailRailProps) {
   const [activeTab, setActiveTab] = useState<Tab>('Overview');
 
   return (
@@ -34,13 +32,13 @@ export function DetailRail({ zone, snapshot, activeMode }: DetailRailProps) {
         ))}
       </div>
 
-      {activeTab === 'Overview' ? <ZoneOverviewTab snapshot={snapshot} activeMode={activeMode} /> : null}
+      {activeTab === 'Overview' ? <ZoneOverviewTab snapshot={snapshot} /> : null}
       {activeTab === 'Alerts' ? <ZoneAlertsTab snapshot={snapshot} /> : null}
       {activeTab === 'MITRE' ? <ZoneMitreTab /> : null}
       {activeTab === 'Risk' ? <ZoneRiskTab snapshot={snapshot} /> : null}
 
       <section>
-        <h3>Representative Assets</h3>
+        <h3>Top Assets</h3>
         <ul className="mini-list">
           {snapshot.topAssets.map((asset) => (
             <li key={asset.id}>

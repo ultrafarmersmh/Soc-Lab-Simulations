@@ -1,22 +1,13 @@
 interface KPIChipProps {
   label: string;
   value: string;
-  delta: number;
-  state: 'normal' | 'elevated' | 'critical';
-  priority: 'primary' | 'secondary';
 }
 
-export function KPIChip({ label, value, delta, state, priority }: KPIChipProps) {
-  const sign = delta > 0 ? '+' : '';
-
+export function KPIChip({ label, value }: KPIChipProps) {
   return (
-    <div className={`kpi-chip ${state} ${priority}`}>
+    <div className="kpi-chip">
       <span>{label}</span>
       <strong>{value}</strong>
-      <em>
-        {sign}
-        {delta}
-      </em>
     </div>
   );
 }

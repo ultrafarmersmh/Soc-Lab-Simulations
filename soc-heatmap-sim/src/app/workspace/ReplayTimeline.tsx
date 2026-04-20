@@ -1,40 +1,29 @@
-import { phaseTimeline } from '../hooks/useIncidentState';
+const phasePoints = [
+  { label: 'Baseline', timestamp: 0 },
+  { label: 'Scan Detected', timestamp: 35 },
+  { label: 'Escalation', timestamp: 55 },
+  { label: 'Containment', timestamp: 75 },
+  { label: 'Recovery', timestamp: 95 }
+];
 
 interface ReplayTimelineProps {
   currentTimestamp: number;
   maxTimestamp: number;
   isPlaying: boolean;
   onTogglePlay: () => void;
-  onReset: () => void;
   onScrub: (timestamp: number) => void;
-  onPhaseJump: (phaseIndex: number) => void;
-  activePhaseIndex: number;
-  currentPhaseSeverity: 'moderate' | 'high';
 }
 
-export function ReplayTimeline({
-  currentTimestamp,
-  maxTimestamp,
-  isPlaying,
-  onTogglePlay,
-  onReset,
-  onScrub,
-  onPhaseJump,
-  activePhaseIndex,
-  currentPhaseSeverity
-}: ReplayTimelineProps) {
+export function ReplayTimeline({ currentTimestamp, maxTimestamp, isPlaying, onTogglePlay, onScrub }: ReplayTimelineProps) {
   const progress = maxTimestamp === 0 ? 0 : (currentTimestamp / maxTimestamp) * 100;
 
   return (
-    <section className={`replay-timeline ${currentPhaseSeverity}`} aria-label="Timeline replay band">
+    <section className="replay-timeline" aria-label="Timeline replay band">
       <div className="timeline-toolbar">
         <button type="button" className="play-toggle" onClick={onTogglePlay}>
           {isPlaying ? '❚❚' : '▶'}
         </button>
-        <button type="button" className="play-toggle secondary" onClick={onReset}>
-          ↺
-        </button>
-        <span>Incident Timeline</span>
+        <span>Timeline</span>
         <strong>
           {String(Math.floor(currentTimestamp / 60)).padStart(2, '0')}:{String(Math.floor(currentTimestamp % 60)).padStart(2, '0')}
         </strong>
@@ -42,16 +31,14 @@ export function ReplayTimeline({
 
       <div className="timeline-track-wrap">
         <div className="timeline-track" style={{ ['--progress' as string]: `${progress}%` }}>
-          {phaseTimeline.map((phase, index) => (
-            <button
+          {phasePoints.map((phase) => (
+            <div
               key={phase.label}
-              type="button"
-              className={`timeline-point ${index < activePhaseIndex ? 'complete' : ''} ${index === activePhaseIndex ? 'current' : ''}`}
-              style={{ left: `${(phase.start / maxTimestamp) * 100}%` }}
-              onClick={() => onPhaseJump(index)}
+              className={`timeline-point ${currentTimestamp >= phase.timestamp ? 'active' : ''}`}
+              style={{ left: `${(phase.timestamp / maxTimestamp) * 100}%` }}
             >
               <span>{phase.label}</span>
-            </button>
+            </div>
           ))}
         </div>
       </div>

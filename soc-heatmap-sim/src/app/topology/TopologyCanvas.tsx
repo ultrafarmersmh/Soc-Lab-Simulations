@@ -1,6 +1,4 @@
-import type { Asset, TopologyData } from '../data/types';
-import type { HeatSignal } from '../hooks/useModeStyling';
-import type { HeatMode } from '../hooks/useIncidentState';
+import type { TimelineEvent, TopologyData } from '../data/types';
 import { BackgroundGrid } from './BackgroundGrid';
 import { OPNsenseCore } from './OPNsenseCore';
 import { TrafficLink } from './TrafficLink';
@@ -10,22 +8,18 @@ interface TopologyCanvasProps {
   topology: TopologyData | null;
   isLoading: boolean;
   error: string | null;
-  assets: Asset[];
+  activeEvents: TimelineEvent[];
   selectedZoneId: string;
   onZoneSelect: (zoneId: string) => void;
-  activeMode: HeatMode;
-  modeSignal: HeatSignal;
 }
 
 export function TopologyCanvas({
   topology,
   isLoading,
   error,
-  assets,
+  activeEvents,
   selectedZoneId,
-  onZoneSelect,
-  activeMode,
-  modeSignal
+  onZoneSelect
 }: TopologyCanvasProps) {
   if (isLoading) {
     return <div className="placeholder-card">Loading topology…</div>;
@@ -47,29 +41,18 @@ export function TopologyCanvas({
     <svg viewBox="0 0 960 420" className="topology-svg" role="img" aria-label="SOC topology map">
       <BackgroundGrid />
       {topology.links.map((link) => (
-        <TrafficLink key={`${link.source}-${link.target}`} link={link} zones={topology.zones} activeMode={activeMode} modeSignal={modeSignal} />
+        <TrafficLink key={`${link.source}-${link.target}`} link={link} zones={topology.zones} activeEvents={activeEvents} />
       ))}
       {regularZones.map((zone) => (
         <ZoneNode
           key={zone.id}
           zone={zone}
+          activeEvents={activeEvents}
           selected={selectedZoneId === zone.id}
           onSelect={onZoneSelect}
-          activeMode={activeMode}
-          modeSignal={modeSignal}
         />
       ))}
       {coreZone ? <OPNsenseCore zone={coreZone} selected={selectedZoneId === coreZone.id} onSelect={onZoneSelect} /> : null}
-
-      {labeledAssets.map((asset) => {
-        const zone = topology.zones.find((item) => item.id === asset.zone);
-        if (!zone) return null;
-        return (
-          <text key={asset.id} x={zone.x + 28} y={zone.y - 24} className="asset-hint">
-            {asset.id === 'NESSUS-01' ? 'Tenable scanner' : asset.id}
-          </text>
-        );
-      })}
     </svg>
   );
 }

@@ -1,15 +1,30 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadAssets, loadTimelineEvents, loadTopology } from './data/loader';
 import type { Asset, TimelineEvent, TopologyData } from './data/types';
-import { useModeStyling } from './hooks/useModeStyling';
-import { phaseTimeline, type HeatMode, useIncidentState } from './hooks/useIncidentState';
 import { useSimulationState } from './hooks/useSimulationState';
 import { IncidentNarrativeBar } from './layout/IncidentNarrativeBar';
 import { OperationsShell } from './layout/OperationsShell';
 import { TopCommandBar } from './layout/TopCommandBar';
 import { MainWorkspace } from './workspace/MainWorkspace';
 
-const modeOptions: HeatMode[] = ['Traffic Heat', 'Alert Heat', 'Risk Heat', 'Containment'];
+const modeOptions = ['Traffic Heat', 'Alert Heat', 'Escalation', 'Containment', 'Recovery'] as const;
+
+type ModeOption = (typeof modeOptions)[number];
+
+function narrativeForEvent(eventType: string | undefined): string {
+  switch (eventType) {
+    case 'scan_detected':
+      return 'Elevated deny volume detected on SOC-WAN ingress, lateral movement escalation underway through exposed SOC-LAN assets.';
+    case 'wazuh_detection':
+      return 'Wazuh analytics spike across SOC-SIEM while cross-zone traffic from SOC-LAN remains elevated and under investigation.';
+    case 'endpoint_containment':
+      return 'Containment controls are active in SOC-LAN; endpoint telemetry is stabilizing as enforcement policies converge.';
+    case 'stabilization':
+      return 'Post-containment stabilization in progress with deny rates falling and user operations progressively restored.';
+    default:
+      return 'Baseline operations are nominal while monitoring for reconnaissance and lateral movement indicators.';
+  }
+}
 
 export default function App() {
   const [topology, setTopology] = useState<TopologyData | null>(null);
@@ -18,7 +33,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState('SOC-LAN');
-  const [activeMode, setActiveMode] = useState<HeatMode>('Traffic Heat');
+  const [activeMode, setActiveMode] = useState<ModeOption>('Traffic Heat');
   const [currentTimestamp, setCurrentTimestamp] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.5);
@@ -46,7 +61,7 @@ export default function App() {
     }
 
     const timer = window.setInterval(() => {
-      setCurrentTimestamp((previous: number) => {
+      setCurrentTimestamp((previous) => {
         const next = previous + speedMultiplier;
         return next >= maxTimestamp ? 0 : next;
       });
@@ -56,76 +71,30 @@ export default function App() {
   }, [isPlaying, speedMultiplier, maxTimestamp, events.length]);
 
   const { activeEvents, globalMetrics } = useSimulationState(events, currentTimestamp);
-  const incident = useIncidentState(currentTimestamp, activeEvents, events);
-  const modeSignal = useModeStyling(activeMode, activeEvents);
+  const latestEvent = activeEvents[activeEvents.length - 1];
 
-  useEffect(() => {
-    setSelectedZoneId(incident.currentPhase.focusZone);
-  }, [incident.currentPhase.focusZone]);
+  const scenarioPhase = useMemo(() => {
+    if (currentTimestamp < 20) return 'Baseline';
+    if (currentTimestamp < 35) return 'Scan Detected';
+    if (currentTimestamp < 75) return 'Escalation';
+    if (currentTimestamp < 95) return 'Containment';
+    return 'Recovery';
+  }, [currentTimestamp]);
 
-  const baselineMetrics = events[0]?.metrics;
+  const narrativeText = narrativeForEvent(latestEvent?.type);
 
   const activeEndpoints = useMemo(() => {
     if (assets.length === 0) return 0;
-    return assets.filter((asset: Asset) => asset.type.includes('endpoint') || asset.type.includes('client')).length || assets.length;
+    return assets.filter((asset) => asset.type.includes('endpoint') || asset.type.includes('client')).length || assets.length;
   }, [assets]);
 
-  const selectedZone = topology?.zones.find((zone: { id: string }) => zone.id === selectedZoneId) ?? null;
+  const selectedZone = topology?.zones.find((zone) => zone.id === selectedZoneId) ?? null;
 
-  const severityRank: Record<string, number> = { Normal: 0, Moderate: 1, Elevated: 2, High: 3, Critical: 4 };
-
-  type KpiState = 'normal' | 'elevated' | 'critical';
-  type KpiItem = {
-    label: string;
-    value: string;
-    delta: number;
-    state: KpiState;
-    priority: 'primary' | 'secondary';
-  };
-
-  const metricSeverity = (value: number, baseline: number): 'normal' | 'elevated' | 'critical' => {
-    const delta = value - baseline;
-    if (delta > baseline * 1.1 || value > baseline * 2.2) return 'critical';
-    if (delta > baseline * 0.5) return 'elevated';
-    return 'normal';
-  };
-
-  const kpiItems: KpiItem[] = [
-    {
-      label: 'Firewall Denies',
-      value: `${globalMetrics.firewallDenies}`,
-      delta: globalMetrics.firewallDenies - (baselineMetrics?.firewallDenies ?? 0),
-      state: metricSeverity(globalMetrics.firewallDenies, baselineMetrics?.firewallDenies ?? 1),
-      priority: 'primary' as const
-    },
-    {
-      label: 'Wazuh Alerts/min',
-      value: `${globalMetrics.wazuhAlerts}`,
-      delta: globalMetrics.wazuhAlerts - (baselineMetrics?.wazuhAlerts ?? 0),
-      state: metricSeverity(globalMetrics.wazuhAlerts, baselineMetrics?.wazuhAlerts ?? 1),
-      priority: 'primary' as const
-    },
-    {
-      label: 'Contained Endpoints',
-      value: `${globalMetrics.containedEndpoints}`,
-      delta: globalMetrics.containedEndpoints - (baselineMetrics?.containedEndpoints ?? 0),
-      state: globalMetrics.containedEndpoints > 0 ? 'elevated' : 'normal',
-      priority: 'primary' as const
-    },
-    {
-      label: 'Active Endpoints',
-      value: activeEndpoints.toString(),
-      delta: 0,
-      state: 'normal',
-      priority: 'secondary' as const
-    },
-    {
-      label: 'Active RDS Sessions',
-      value: `${globalMetrics.rdsSessions}`,
-      delta: globalMetrics.rdsSessions - (baselineMetrics?.rdsSessions ?? 0),
-      state: metricSeverity(globalMetrics.rdsSessions, baselineMetrics?.rdsSessions ?? 1),
-      priority: 'secondary' as const
-    }
+  const kpiItems = [
+    { label: 'Active Endpoints', value: activeEndpoints.toString() },
+    { label: 'Active RDS Sessions', value: `${globalMetrics.rdsSessions}` },
+    { label: 'Wazuh Alerts/min', value: `${globalMetrics.wazuhAlerts}` },
+    { label: 'Firewall Denies', value: `${globalMetrics.firewallDenies}` }
   ];
 
   const replayClock = `${String(Math.floor(currentTimestamp / 60)).padStart(2, '0')}:${String(Math.floor(currentTimestamp % 60)).padStart(2, '0')}`;
@@ -141,21 +110,9 @@ export default function App() {
           replayClock={replayClock}
           replayStatus={`Live Replay ${speedMultiplier.toFixed(1)}x`}
           playState={isPlaying ? 'Playing' : 'Paused'}
-          phaseSummary={{
-            phase: incident.currentPhase.label,
-            impactedZone: incident.currentPhase.focusZone,
-            severity: incident.currentPhase.severity,
-            controlState: incident.currentPhase.controlState
-          }}
         />
       }
-      narrative={
-        <IncidentNarrativeBar
-          phase={incident.currentPhase.label}
-          text={incident.eventLog[incident.eventLog.length - 1]?.detail ?? 'Baseline operations in monitored steady state.'}
-          severity={incident.currentPhase.severity}
-        />
-      }
+      narrative={<IncidentNarrativeBar text={narrativeText} phase={scenarioPhase} />}
       main={
         <MainWorkspace
           topology={topology}
@@ -164,25 +121,18 @@ export default function App() {
           assets={assets}
           events={events}
           activeEvents={activeEvents}
-          eventLog={incident.eventLog}
           selectedZone={selectedZone}
           selectedZoneId={selectedZoneId}
           onZoneSelect={setSelectedZoneId}
-          modes={modeOptions}
+          modes={[...modeOptions]}
           activeMode={activeMode}
-          onModeChange={(mode) => setActiveMode(mode)}
+          onModeChange={(mode) => setActiveMode(mode as ModeOption)}
           currentTimestamp={currentTimestamp}
           maxTimestamp={maxTimestamp}
           isPlaying={isPlaying}
           speedMultiplier={speedMultiplier}
-          onTogglePlay={() => setIsPlaying((previous: boolean) => !previous)}
-          onReset={() => setCurrentTimestamp(0)}
+          onTogglePlay={() => setIsPlaying((previous) => !previous)}
           onScrub={setCurrentTimestamp}
-          onPhaseJump={(phaseIndex) => setCurrentTimestamp(phaseTimeline[Math.max(0, phaseIndex)].start)}
-          phaseIndex={incident.phaseIndex}
-          baselineEvent={incident.baselineEvent}
-          modeSignal={modeSignal}
-          currentPhaseSeverity={severityRank[incident.currentPhase.severity] >= 3 ? 'high' : 'moderate'}
           onSpeedChange={setSpeedMultiplier}
         />
       }
