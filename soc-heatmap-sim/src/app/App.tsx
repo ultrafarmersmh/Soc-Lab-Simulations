@@ -1,56 +1,202 @@
-import { useEffect, useState } from 'react';
-import { loadTopology } from './data/loader';
-import type { TopologyData } from './data/types';
-import { DashboardLayout } from './layout/DashboardLayout';
-import { HeaderBar } from './layout/HeaderBar';
-import { MetricsPanel } from './metrics/MetricsPanel';
-import { MitrePanel } from './overlays/MitrePanel';
-import { RiskHeatPanel } from './overlays/RiskHeatPanel';
-import { TopologyCanvas } from './topology/TopologyCanvas';
-import { PlaybackControls } from './timeline/PlaybackControls';
-import { TimelineBar } from './timeline/TimelineBar';
+import { useEffect, useMemo, useState } from 'react';
+import { loadAssets, loadTimelineEvents, loadTopology } from './data/loader';
+import type { Asset, TimelineEvent, TopologyData, Zone } from './data/types';
+import { useModeStyling } from './hooks/useModeStyling';
+import { phaseTimeline, type HeatMode, useIncidentState } from './hooks/useIncidentState';
+import { useSimulationState } from './hooks/useSimulationState';
+import { IncidentNarrativeBar } from './layout/IncidentNarrativeBar';
+import { OperationsShell } from './layout/OperationsShell';
+import { TopCommandBar } from './layout/TopCommandBar';
+import { MainWorkspace } from './workspace/MainWorkspace';
+
+const modeOptions: HeatMode[] = ['Traffic Heat', 'Alert Heat', 'Risk Heat', 'Containment'];
+
+type KpiState = 'normal' | 'elevated' | 'critical';
+
+type KpiItem = {
+  label: string;
+  value: string;
+  delta: number;
+  state: KpiState;
+  priority: 'primary' | 'secondary';
+};
+
+const phaseSeverityRank: Record<(typeof phaseTimeline)[number]['severity'], number> = {
+  Normal: 0,
+  Moderate: 1,
+  Elevated: 2,
+  High: 3,
+  Critical: 4
+};
+
+function metricSeverity(value: number, baseline: number): KpiState {
+  const safeBaseline = Math.max(1, baseline);
+  const delta = value - safeBaseline;
+  if (delta > safeBaseline * 1.1 || value > safeBaseline * 2.2) return 'critical';
+  if (delta > safeBaseline * 0.5) return 'elevated';
+  return 'normal';
+}
 
 export default function App() {
   const [topology, setTopology] = useState<TopologyData | null>(null);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedZoneId, setSelectedZoneId] = useState('SOC-LAN');
+  const [activeMode, setActiveMode] = useState<HeatMode>('Traffic Heat');
+  const [currentTimestamp, setCurrentTimestamp] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [speedMultiplier, setSpeedMultiplier] = useState(1.5);
 
   useEffect(() => {
-    loadTopology()
-      .then(setTopology)
+    Promise.all([loadTopology(), loadAssets(), loadTimelineEvents()])
+      .then(([topologyData, assetsData, timelineData]) => {
+        setTopology(topologyData);
+        setAssets(assetsData.assets);
+        setEvents(timelineData.events);
+      })
       .catch((loadError: unknown) => {
-        setError(loadError instanceof Error ? loadError.message : 'Unknown topology load error');
+        setError(loadError instanceof Error ? loadError.message : 'Unknown data load error');
       })
       .finally(() => {
         setIsLoading(false);
       });
   }, []);
 
+  const maxTimestamp = events.length > 0 ? events[events.length - 1].timestamp : 100;
+
+  useEffect(() => {
+    if (!isPlaying || events.length === 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setCurrentTimestamp((previous: number) => {
+        const next = previous + speedMultiplier;
+        return next >= maxTimestamp ? 0 : next;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [isPlaying, speedMultiplier, maxTimestamp, events.length]);
+
+  const { activeEvents, globalMetrics } = useSimulationState(events, currentTimestamp);
+  const incident = useIncidentState(currentTimestamp, activeEvents, events);
+  const modeSignal = useModeStyling(activeMode, activeEvents);
+
+  useEffect(() => {
+    setSelectedZoneId(incident.impactedZone);
+  }, [incident.impactedZone]);
+
+  const baselineMetrics = events[0]?.metrics;
+
+  const activeEndpoints = useMemo(() => {
+    if (assets.length === 0) return 0;
+    return assets.filter((asset: Asset) => asset.type.includes('endpoint') || asset.type.includes('client')).length || assets.length;
+  }, [assets]);
+
+  const selectedZone = topology?.zones.find((zone: Zone) => zone.id === selectedZoneId) ?? null;
+
+  const kpiItems: KpiItem[] = [
+    {
+      label: 'Firewall Denies',
+      value: `${globalMetrics.firewallDenies}`,
+      delta: globalMetrics.firewallDenies - (baselineMetrics?.firewallDenies ?? 0),
+      state: metricSeverity(globalMetrics.firewallDenies, baselineMetrics?.firewallDenies ?? 0),
+      priority: 'primary'
+    },
+    {
+      label: 'Wazuh Alerts/min',
+      value: `${globalMetrics.wazuhAlerts}`,
+      delta: globalMetrics.wazuhAlerts - (baselineMetrics?.wazuhAlerts ?? 0),
+      state: metricSeverity(globalMetrics.wazuhAlerts, baselineMetrics?.wazuhAlerts ?? 0),
+      priority: 'primary'
+    },
+    {
+      label: 'Contained Endpoints',
+      value: `${globalMetrics.containedEndpoints}`,
+      delta: globalMetrics.containedEndpoints - (baselineMetrics?.containedEndpoints ?? 0),
+      state: globalMetrics.containedEndpoints > 0 ? 'elevated' : 'normal',
+      priority: 'primary'
+    },
+    {
+      label: 'Active Endpoints',
+      value: activeEndpoints.toString(),
+      delta: 0,
+      state: 'normal',
+      priority: 'secondary'
+    },
+    {
+      label: 'Active RDS Sessions',
+      value: `${globalMetrics.rdsSessions}`,
+      delta: globalMetrics.rdsSessions - (baselineMetrics?.rdsSessions ?? 0),
+      state: metricSeverity(globalMetrics.rdsSessions, baselineMetrics?.rdsSessions ?? 0),
+      priority: 'secondary'
+    }
+  ];
+
+  const replayClock = `${String(Math.floor(currentTimestamp / 60)).padStart(2, '0')}:${String(Math.floor(currentTimestamp % 60)).padStart(2, '0')}`;
+
   return (
-    <div className="app-shell">
-      <HeaderBar
-        title="SOC Operational Heatmap Simulator"
-        subtitle="Segmented SOC lab visualization scaffold"
-        rightContent={<span className="status-pill">Scaffold v1</span>}
-      />
-      <DashboardLayout
-        topology={<TopologyCanvas topology={topology} isLoading={isLoading} error={error} />}
-        metrics={<MetricsPanel />}
-        timeline={
-          <div>
-            <h2>Pane C — Timeline / Incident Playback</h2>
-            <PlaybackControls />
-            <TimelineBar />
-          </div>
-        }
-        overlays={
-          <div>
-            <h2>Pane D — Security Overlay</h2>
-            <MitrePanel />
-            <RiskHeatPanel />
-          </div>
-        }
-      />
-    </div>
+    <OperationsShell
+      topBar={
+        <TopCommandBar
+          title="SOC.lab Operational Simulator"
+          subtitle="Segmented SOC lab visualization scaffold"
+          scenarioLabel="Scenario: Lateral Movement"
+          kpis={kpiItems}
+          replayClock={replayClock}
+          replayStatus={`Live Replay ${speedMultiplier.toFixed(1)}x`}
+          playState={isPlaying ? 'Playing' : 'Paused'}
+          phaseSummary={{
+            phase: incident.currentPhase.label,
+            impactedZone: incident.impactedZone,
+            severity: incident.currentPhase.severity,
+            controlState: incident.currentPhase.controlState
+          }}
+        />
+      }
+      narrative={
+        <IncidentNarrativeBar
+          phase={incident.currentPhase.label}
+          text={incident.eventLog[incident.eventLog.length - 1]?.detail ?? 'Baseline operations in monitored steady state.'}
+          severity={incident.currentPhase.severity}
+        />
+      }
+      main={
+        <MainWorkspace
+          topology={topology}
+          isLoading={isLoading}
+          error={error}
+          assets={assets}
+          events={events}
+          activeEvents={activeEvents}
+          eventLog={incident.eventLog}
+          selectedZone={selectedZone}
+          selectedZoneId={selectedZoneId}
+          onZoneSelect={setSelectedZoneId}
+          modes={modeOptions}
+          activeMode={activeMode}
+          onModeChange={setActiveMode}
+          currentTimestamp={currentTimestamp}
+          maxTimestamp={maxTimestamp}
+          isPlaying={isPlaying}
+          speedMultiplier={speedMultiplier}
+          onTogglePlay={() => setIsPlaying((previous: boolean) => !previous)}
+          onReset={() => setCurrentTimestamp(0)}
+          onScrub={setCurrentTimestamp}
+          onPhaseJump={(phaseIndex) => {
+            const safePhase = phaseTimeline[Math.min(Math.max(0, phaseIndex), phaseTimeline.length - 1)];
+            setCurrentTimestamp(safePhase.start);
+          }}
+          phaseIndex={incident.phaseIndex}
+          baselineEvent={incident.baselineEvent}
+          modeSignal={modeSignal}
+          currentPhaseSeverity={phaseSeverityRank[incident.currentPhase.severity as keyof typeof phaseSeverityRank] >= 3 ? 'high' : 'moderate'}
+          onSpeedChange={setSpeedMultiplier}
+        />
+      }
+    />
   );
 }

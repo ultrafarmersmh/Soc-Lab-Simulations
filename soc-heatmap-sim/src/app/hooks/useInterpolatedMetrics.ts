@@ -5,7 +5,7 @@ export function useInterpolatedMetrics(events: TimelineEvent[], timestamp: numbe
   return useMemo(
     () => ({
       timestamp,
-      nearestEvent: events.find((event) => event.timestamp >= timestamp) ?? events.at(-1)
+      nearestEvent: events.find((event) => event.timestamp >= timestamp) ?? events[events.length - 1]
     }),
     [events, timestamp]
   );
