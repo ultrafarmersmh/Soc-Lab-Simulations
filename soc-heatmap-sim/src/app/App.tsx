@@ -46,7 +46,7 @@ export default function App() {
     }
 
     const timer = window.setInterval(() => {
-      setCurrentTimestamp((previous) => {
+      setCurrentTimestamp((previous: number) => {
         const next = previous + speedMultiplier;
         return next >= maxTimestamp ? 0 : next;
       });
@@ -67,10 +67,10 @@ export default function App() {
 
   const activeEndpoints = useMemo(() => {
     if (assets.length === 0) return 0;
-    return assets.filter((asset) => asset.type.includes('endpoint') || asset.type.includes('client')).length || assets.length;
+    return assets.filter((asset: Asset) => asset.type.includes('endpoint') || asset.type.includes('client')).length || assets.length;
   }, [assets]);
 
-  const selectedZone = topology?.zones.find((zone) => zone.id === selectedZoneId) ?? null;
+  const selectedZone = topology?.zones.find((zone: { id: string }) => zone.id === selectedZoneId) ?? null;
 
   const severityRank: Record<string, number> = { Normal: 0, Moderate: 1, Elevated: 2, High: 3, Critical: 4 };
 
@@ -170,15 +170,15 @@ export default function App() {
           onZoneSelect={setSelectedZoneId}
           modes={modeOptions}
           activeMode={activeMode}
-          onModeChange={(mode) => setActiveMode(mode as HeatMode)}
+          onModeChange={(mode) => setActiveMode(mode)}
           currentTimestamp={currentTimestamp}
           maxTimestamp={maxTimestamp}
           isPlaying={isPlaying}
           speedMultiplier={speedMultiplier}
-          onTogglePlay={() => setIsPlaying((previous) => !previous)}
+          onTogglePlay={() => setIsPlaying((previous: boolean) => !previous)}
           onReset={() => setCurrentTimestamp(0)}
           onScrub={setCurrentTimestamp}
-          onPhaseJump={(phaseIndex) => setCurrentTimestamp(phaseTimeline[phaseIndex].start)}
+          onPhaseJump={(phaseIndex) => setCurrentTimestamp(phaseTimeline[Math.max(0, phaseIndex)].start)}
           phaseIndex={incident.phaseIndex}
           baselineEvent={incident.baselineEvent}
           modeSignal={modeSignal}
